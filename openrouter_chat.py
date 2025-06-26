@@ -10,16 +10,18 @@ client = OpenAI(
     base_url="https://openrouter.ai/api/v1",
 )
 
-MODEL = "mistralai/mistral-7b-instruct:free"
+MODEL = "meta-llama/llama-3-8b-instruct:free"
 
-def chat_with_openrouter(message: str) -> str:
+
+def ask_question_with_chunks(chunks: list, question: str) -> str:
+    context = "\n\n".join([chunk.page_content for chunk in chunks])
     try:
         response = client.chat.completions.create(
-            model=MODEL,
+            model="mistralai/mistral-7b-instruct:free",
             messages=[
-                {"role": "system", "content": "You are a helpful AI assistant."},
-                {"role": "user", "content": message}
-            ],
+                {"role": "system", "content": "Answer only using the document context."},
+                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"}
+            ]
         )
         return response.choices[0].message.content.strip()
     except Exception as e:
