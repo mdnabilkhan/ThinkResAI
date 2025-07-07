@@ -14,15 +14,32 @@ MODEL = "meta-llama/llama-3-8b-instruct:free"
 
 
 def ask_question_with_chunks(chunks: list, question: str) -> str:
-    context = "\n\n".join([chunk.page_content for chunk in chunks])
-    try:
-        response = client.chat.completions.create(
-            model="mistralai/mistral-7b-instruct:free",
-            messages=[
-                {"role": "system", "content": "Answer only using the document context."},
-                {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {question}"}
-            ]
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
+    context = ""
+    used_sources = set()
+
+    for chunk in chunks:
+        context += f"{chunk.metadata.get('source', 'Unknown')}:\n{chunk.page_content}\n\n"
+        used_sources.add(chunk.metadata.get("source", "Unknown"))
+
+    prompt = f"""
+You are an intelligent assistant. Answer the user's question based on the following context:
+
+{context}
+
+Question: {question}
+Answer:
+"""
+
+    response = client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {"role": "system", "content": "You are a helpful AI assistant."},
+            {"role": "user", "content": prompt}
+        ],
+    )
+
+    final_answer = response.choices[0].message.content.strip()
+
+    # 👇 Attach sources in final response
+    return f"{final_answer}\n\n(Sources: {', '.join(used_sources)})"
+
